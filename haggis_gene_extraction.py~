@@ -1,0 +1,171 @@
+#--------------------------------------------------------
+# A program to help parse output from Glimmer HMM
+# author: Noora Camilla Montonen
+# 
+#--------------------------------------------------------
+
+#PRELIMINARIES: 
+#		-importing the required libraries
+#		-importing the reference sequence 
+#		-importing the required files 	
+#		-storing a string with the species name
+from Bio import SeqIO
+
+column_file=open('removed_output.txt','r')
+training_species='human'
+
+#import the sequence to be analyse using SeqIO from the BioPython package 
+unknown_sequence=SeqIO.read('haggis.fna','fasta')
+sequence_string=str(unknown_sequence.seq)
+
+
+#HELPER METHODS:
+#-----------------------------------------------------
+def unique_filter(array):
+	unique_list=[]
+	for element in array:
+		if element not in unique_list:
+			unique_list.append(element)
+	return unique_list
+#-----------------------------------------------------
+
+#OBTAIN EXON POSITIONS FOR EACH GENE: 
+#METHOD NAME: exon_positions
+#INPUT: correctly formatted text file 
+#OUTPUT: an dictionary containing the gene number as a key and the exon positions in an array
+#	-each input file contains seven columns in this order 
+#			(0) Gene number
+#			(1) Exon number 
+#			(2) DNA strand (denoted with a + or -)
+#			(3) Exon type
+#			(4) Exon start 
+#			(5) Exon end 
+#			(6) Exon length
+#	I. Store the content of each row as an array into an array of array called "per_row"
+#	II. Initialise an empty dict "exon_position_dictionary" and make one bucket for every unique gene 
+#some ideas and code were obtained from #source http://stackoverflow.com/questions/15585011/reading-columns-as-lists
+#POTENTIAL PROBLEMS:
+#		-"strips" the file of the data 
+
+def exon_positions(filename_string):
+
+#read the file 
+	filename=open(filename_string,'r')
+#store each row into an array of arrays
+	per_row=[]
+	for line in filename:
+    		per_row.append(line.strip().split())
+
+#make a new dictionary and make a new bucket for every unique gene
+	exon_position_dictionary={}
+
+	gene_numbers=[]
+	for element in per_row:
+		gene_numbers.append(element[0][0])
+
+	gene_numbers=unique_filter(gene_numbers)
+#	print gene_numbers
+
+#make a dictionary with the unique_gene_numbers as keys 
+
+	for gene_number in gene_numbers:
+		exon_position_dictionary[gene_number]=[]
+
+#add the exon positions 
+	for element in per_row:
+		gene=element[0][0]
+		print gene
+		exon_position_dictionary[gene].append(element[4:6])
+
+	return exon_position_dictionary
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#TESTS FOR THE METHOD: exon_positions
+#uncomment to verify 
+
+gene_dictionary=exon_positions('removed_output.txt')
+#print gene_dictionary.keys()
+#for line in column_file:
+#	print line
+#exon_position_dictionary=exon_positions('removed_output.txt')
+#print exon_position_dictionary.keys()
+
+#-----------------------------------------------------------------------
+#METHOD: translate_exons 
+#INPUT: dict containing the exon positions for each gene 
+#OUTPUT: dict containing the translated exons as elements in an array
+#	-get the keyset of the dictionary containing exon positions and iterate over it
+#	-for each key, get the list of exons associated with it 
+#
+
+def translate_exons(dictionary):
+#make a new dictionary to hold the translated exons
+	translated_exons={}
+#iterate over the key set of the input dictionary and for each exon extract the sequence
+	for element in gene_dictionary.keys():
+#for every gene make an entry into the final genes dictionary
+		translated_exons[element]=[]
+		for position_list in dictionary[element]:
+			translated_exons[element].append(sequence_string[int(position_list[0])-1:int(position_list[1])])
+	return translated_exons
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#TESTS FOR THE METHOD: translate exons 
+translated_exons_dictionary=translate_exons(gene_dictionary)
+print translated_exons_dictionary['1']
+
+#--------------------------------------------------------------------------
+#METHOD: concatenate_exons
+#INPUT: dictionary containing exon sequences for each gene 
+#OUPUT: dictionary containing the concatenated gene sequences
+def concatenate_exons(translated_exons_dictionary):
+	gene_sequence={}
+	for element in translated_exons_dictionary.keys():
+		gene_sequence[element]="".join(translated_exons_dictionary[element])
+	return gene_sequence
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#TESTS FOR THE METHOD: translate exons 
+concatenated_exons=concatenate_exons(translated_exons_dictionary)
+print concatenated_exons['1']
+#---------------------------------------
+
+
+#---------------------------------------
+#METHOD: make an output file with each gene separated by a fasta header 
+
+def fasta_headers(concatenated_exons_dictionary,species_string):
+	fastaheaders={}
+	for gene_number in concatenated_exons_dictionary.keys():
+		fastaheaders[gene_number]='>gene'+gene_number+'_'+species_string
+	return fastaheaders
+
+#------------------------------------------
+#TESTS FOR THE METHOD: fasta_headers
+fastaheaders=fasta_headers(concatenated_exons,training_species)
+print fastaheaders['1']
+		
+		
+
+#--------------------------------------------
+#Method: make fasta file
+#INPUT: dictionary of gene numbers and dictionary of fastaheaders
+#OUPUT: text file with concatenated fasta sequences
+
+def make_fasta_file(concatenated_exons_dictionary,fasta_headers_dictionary, string_filename):
+	final_fasta_file=open(string_filename, 'w')
+	for gene in concatenated_exons_dictionary.keys():
+		fasta_header=fasta_headers_dictionary[gene]
+		final_fasta_file.write(fasta_header)
+		final_fasta_file.write("\n")
+		final_fasta_file.write(concatenated_exons_dictionary[gene])
+		final_fasta_file.write("\n")
+		final_fasta_file.write("\n")
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#TESTS FOR make_fasta_file
+
+make_fasta_file(concatenated_exons,fastaheaders,'test_haggis.fasta')
+	
+
+
+

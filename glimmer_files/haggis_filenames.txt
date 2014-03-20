@@ -1,0 +1,5 @@
+arabidopsis	haggis_trained_on_arabidopsisTRAINED.txt
+celegans	haggis_trained_on_celegansTRAINED.txt
+human	haggis_trained_on_humanTRAINED.txt
+rice	haggis_trained_on_riceTRAINED.txt
+zebrafish	haggis_trained_on_zebrafishTRAINED.txt
